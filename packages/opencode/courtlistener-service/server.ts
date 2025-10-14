@@ -10,7 +10,7 @@ import { fetchOpinionFromCache, loadCacheMetadata, searchOpinionContent } from '
 const PORT = process.env.PORT || 3000
 
 interface SearchCasesRequest {
-	pattern: string
+	query: string
 	court?: string[]
 	dateRange?: [string, string]
 	limit?: number
@@ -61,7 +61,7 @@ async function handleRequest(req: any, res: any): Promise<void> {
 			const body = await readBody<SearchCasesRequest>(req)
 
 			const result = await searchCaseIndex({
-				pattern: body.pattern,
+				pattern: body.query,
 				court: body.court,
 				dateRange: body.dateRange,
 				limit: body.limit,

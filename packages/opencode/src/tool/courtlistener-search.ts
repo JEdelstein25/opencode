@@ -34,7 +34,7 @@ export const CourtListenerSearchTool = Tool.define("courtlistener_search", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
-				pattern: params.pattern,
+				query: params.pattern,
 				limit: params.limit || 50,
 				court: params.court,
 				dateRange: params.dateRange,
