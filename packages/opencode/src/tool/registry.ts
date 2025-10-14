@@ -10,6 +10,9 @@ import { TodoWriteTool, TodoReadTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
+import { CourtListenerSearchTool } from "./courtlistener-search"
+import { CourtListenerReadTool } from "./courtlistener-read"
+import { CourtListenerContentSearchTool } from "./courtlistener-content"
 import type { Agent } from "../agent/agent"
 import { Tool } from "./tool"
 import { Instance } from "../project/instance"
@@ -88,6 +91,9 @@ export namespace ToolRegistry {
       TodoWriteTool,
       TodoReadTool,
       TaskTool,
+      CourtListenerSearchTool,
+      CourtListenerReadTool,
+      CourtListenerContentSearchTool,
       ...custom,
     ]
   }

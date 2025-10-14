@@ -1,0 +1,21 @@
+{
+  "name": "courtlistener-service",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "CourtListener search service for legal opinions",
+  "scripts": {
+    "dev": "bun run server.ts",
+    "start": "bun run server.ts",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "dependencies": {
+    "picomatch": "^4.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/picomatch": "^3.0.1"
+  }
+}

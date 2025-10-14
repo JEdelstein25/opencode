@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  courtlistener-search:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - tier1-cache:/cache/tier1
+      - tier2-cache:/cache/tier2
+    environment:
+      - NODE_ENV=production
+      - COURTLISTENER_INDEX_PATH=/cache/tier1/case_index.ndjson
+      - COURTLISTENER_CACHE_DIR=/cache/tier2/opinions
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  tier1-cache:
+    driver: local
+  tier2-cache:
+    driver: local
