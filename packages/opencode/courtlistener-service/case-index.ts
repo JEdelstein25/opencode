@@ -5,7 +5,7 @@
 
 import { createReadStream } from 'node:fs'
 import { createInterface } from 'node:readline'
-import picomatch from 'picomatch/posix'
+import picomatch from 'picomatch'
 import type { CaseIndexEntry, SearchCaseIndexOptions } from './types'
 
 const CASE_INDEX_PATH = process.env.COURTLISTENER_INDEX_PATH || '/tmp/cache/tier1/case_index.ndjson'

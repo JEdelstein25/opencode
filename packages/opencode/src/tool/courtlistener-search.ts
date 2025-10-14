@@ -50,41 +50,35 @@ export const CourtListenerSearchTool = Tool.define("courtlistener_search", {
 
 		const result = await response.json()
 		const caseIds: number[] = result.caseIds || []
-
-		if (caseIds.length === 0) {
-			return {
-				title: "No cases found",
-				output: `No cases found matching pattern: ${params.pattern}`,
-				metadata: {
-					count: 0,
-					caseIds: [],
-				},
-			}
-		}
-
 		const cases = result.cases as CaseSearchResult[]
-		let output = `Found ${caseIds.length} cases:\n\n`
-		for (const c of cases.slice(0, 20)) {
-			output += `[${c.id}] ${c.name}\n`
-			output += `  Court: ${c.court} | Date: ${c.date}\n`
-			if (c.citation) {
-				output += `  Citation: ${c.citation}\n`
+
+		let output = ""
+		if (caseIds.length === 0) {
+			output = `No cases found matching pattern: ${params.pattern}`
+		} else {
+			output = `Found ${caseIds.length} cases:\n\n`
+			for (const c of cases.slice(0, 20)) {
+				output += `[${c.id}] ${c.name}\n`
+				output += `  Court: ${c.court} | Date: ${c.date}\n`
+				if (c.citation) {
+					output += `  Citation: ${c.citation}\n`
+				}
+				output += "\n"
 			}
-			output += "\n"
-		}
 
-		if (caseIds.length > 20) {
-			output += `\n... and ${caseIds.length - 20} more cases\n`
-		}
+			if (caseIds.length > 20) {
+				output += `\n... and ${caseIds.length - 20} more cases\n`
+			}
 
-		output += `\nUse courtlistener_read tool with case IDs to read full opinions.`
+			output += `\nUse courtlistener_read tool with case IDs to read full opinions.`
+		}
 
 		return {
-			title: `Found ${caseIds.length} cases`,
+			title: caseIds.length === 0 ? "No cases found" : `Found ${caseIds.length} cases`,
 			output,
 			metadata: {
 				count: caseIds.length,
-				caseIds,
+				caseIds: caseIds as any,
 				cases: cases as any,
 			},
 		}
