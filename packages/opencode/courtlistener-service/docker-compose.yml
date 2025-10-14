@@ -8,7 +8,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - /tmp/cache/tier1:/cache/tier1:ro
+      - type: bind
+        source: /tmp/cache/tier1/case_index.ndjson
+        target: /cache/tier1/case_index.ndjson
+        read_only: true
       - /tmp/cache/tier2:/cache/tier2
     env_file:
       - .env

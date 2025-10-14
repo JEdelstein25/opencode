@@ -1,11 +1,12 @@
 # CourtListener Search Service
 FROM oven/bun:1
 
-# Install ripgrep-all and dependencies
+# Install ripgrep, ripgrep-all and dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     bzip2 \
     zstd \
+    ripgrep \
     && rm -rf /var/lib/apt/lists/*
 
 # Install ripgrep-all
