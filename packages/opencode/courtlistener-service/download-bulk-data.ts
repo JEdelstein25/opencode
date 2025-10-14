@@ -14,7 +14,7 @@ import { createWriteStream } from 'node:fs'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 
-const STORAGE_BASE_URL = 'https://storage.courtlistener.com'
+const STORAGE_BASE_URL = 'https://com-courtlistener-storage.s3-us-west-2.amazonaws.com'
 
 /**
  * List available bulk data files in the S3 bucket.

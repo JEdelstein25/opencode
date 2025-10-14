@@ -203,12 +203,10 @@ function parseCSVLineToEntry(line: string, headerMap: Map<string, number>): Case
 	}
 }
 
-// Run if executed directly
-if (require.main === module) {
-	buildCaseIndex().catch((err) => {
-		console.error('Failed to build index:', err)
-		process.exit(1)
-	})
-}
+// Run the build process
+buildCaseIndex().catch((err) => {
+	console.error('Failed to build index:', err)
+	process.exit(1)
+})
 
 export { buildCaseIndex }
