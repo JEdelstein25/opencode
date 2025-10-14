@@ -57,9 +57,13 @@ async function buildCaseIndex(): Promise<void> {
 
 	console.log('Download complete. Processing...')
 
-	// Step 2: Decompress and parse CSV
-	const entries: CaseIndexEntry[] = []
+	// Step 2: Open output stream first (write while parsing)
+	console.log(`Writing index to ${OUTPUT_FILE}...`)
+	const outputStream = createWriteStream(OUTPUT_FILE)
+
+	// Step 3: Decompress and parse CSV (streaming write)
 	let lineCount = 0
+	let entryCount = 0
 	let headerMap: Map<string, number> | null = null
 
 	// Use bunzip2 system command to decompress (Node's zlib doesn't support bz2)
@@ -83,7 +87,9 @@ async function buildCaseIndex(): Promise<void> {
 		try {
 			const entry = parseCSVLineToEntry(line, headerMap!)
 			if (entry) {
-				entries.push(entry)
+				// Write immediately instead of storing in memory
+				outputStream.write(JSON.stringify(entry) + '\n')
+				entryCount++
 			}
 		} catch (err) {
 			console.error(`Error parsing line ${lineCount}:`, err)
@@ -91,19 +97,13 @@ async function buildCaseIndex(): Promise<void> {
 
 		// Progress indicator
 		if (lineCount % 100000 === 0) {
-			console.log(`Processed ${lineCount} lines, ${entries.length} entries...`)
+			console.log(`Processed ${lineCount} lines, ${entryCount} entries...`)
 		}
 	}
 
-	console.log(`\nTotal: ${entries.length} cases indexed`)
+	console.log(`\nTotal: ${entryCount} cases indexed`)
 
-	// Step 3: Write NDJSON output
-	console.log(`Writing index to ${OUTPUT_FILE}...`)
-
-	const outputStream = createWriteStream(OUTPUT_FILE)
-	for (const entry of entries) {
-		outputStream.write(JSON.stringify(entry) + '\n')
-	}
+	// Step 4: Close output stream
 	outputStream.end()
 
 	await new Promise<void>((resolve, reject) => {
