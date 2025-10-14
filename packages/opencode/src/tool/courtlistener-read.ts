@@ -6,7 +6,9 @@ const SERVICE_URL = process.env.COURTLISTENER_SERVICE_URL || "http://localhost:3
 
 const DESCRIPTION = `Read the full text of a legal opinion from CourtListener.
 
-This tool fetches and displays the complete text of a legal opinion given its CourtListener ID. The opinion includes metadata (court, date, judges, citations) and the full opinion text.
+This tool fetches and displays the complete text of a legal opinion given its CourtListener ID. The opinion includes metadata (court, date, judges, citations) and the full opinion text (if available in cache or API is configured).
+
+Note: Requires COURTLISTENER_API_TOKEN environment variable to fetch uncached opinions.
 
 Use this tool after using courtlistener_search to get the IDs of cases you want to read.
 

@@ -30,6 +30,12 @@ function buildCLHeaders(options: Pick<CLAPIRequestOptions, 'headers' | 'body'>):
 		headers['Content-Type'] = 'application/json'
 	}
 
+	// Add authentication if token is provided
+	const apiToken = process.env.COURTLISTENER_API_TOKEN
+	if (apiToken) {
+		headers['Authorization'] = `Token ${apiToken}`
+	}
+
 	return headers
 }
 

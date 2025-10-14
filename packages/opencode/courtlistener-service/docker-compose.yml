@@ -8,12 +8,15 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - tier1-cache:/cache/tier1
-      - tier2-cache:/cache/tier2
+      - /tmp/cache/tier1:/cache/tier1:ro
+      - /tmp/cache/tier2:/cache/tier2
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - COURTLISTENER_INDEX_PATH=/cache/tier1/case_index.ndjson
       - COURTLISTENER_CACHE_DIR=/cache/tier2/opinions
+      - COURTLISTENER_API_TOKEN=${COURTLISTENER_API_TOKEN}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]

@@ -1,16 +1,16 @@
 /**
  * Opinion content cache (Tier 2 cache).
- * Manages fetching, caching, and searching legal opinions.
+ * Fetches opinions from bulk CSV file using ripgrep-all (fully offline).
  */
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { COURTLISTENER_API_BASE_URL, fetchFromCLAPI } from './fetch-cl-api'
 import type { Opinion, SearchMatch, SearchOpinionContentOptions } from './types'
 
 const TIER2_CACHE_DIR = process.env.COURTLISTENER_CACHE_DIR || '/tmp/cache/tier2/opinions'
+const OPINIONS_BULK_FILE = process.env.OPINIONS_BULK_FILE || '/tmp/cache/tier1/opinions-2025-10-09.csv.bz2'
 const TIER2_MAX_SIZE = 10 * 1024 ** 3 // 10 GB
 const TIER2_TARGET_SIZE = 9 * 1024 ** 3
 
@@ -123,18 +123,12 @@ export async function fetchOpinionFromCache(opinionId: number, signal?: AbortSig
 		// Not in cache
 	}
 
-	const response = await fetchFromCLAPI<Opinion>(`${COURTLISTENER_API_BASE_URL}/opinions/${opinionId}/`, { signal })
+	// Fetch from bulk CSV file using ripgrep-all
+	const opinion = await fetchOpinionFromBulkFile(opinionId, signal)
 
-	if (!response.ok) {
-		if (response.status === 404) return null
-		throw new Error(`CourtListener API error: ${response.status} ${response.statusText || 'Unknown error'}`)
+	if (!opinion) {
+		return null
 	}
-
-	if (!response.data) {
-		throw new Error('No data received from CourtListener API')
-	}
-
-	const opinion = response.data
 
 	await writeFile(cachedPath, JSON.stringify(opinion, null, 2))
 	await updateCacheMetadata(opinionId, opinion)
@@ -142,6 +136,73 @@ export async function fetchOpinionFromCache(opinionId: number, signal?: AbortSig
 	await evictIfOverLimit()
 
 	return opinion
+}
+
+async function fetchOpinionFromBulkFile(opinionId: number, signal?: AbortSignal): Promise<Opinion | null> {
+	if (!existsSync(OPINIONS_BULK_FILE)) {
+		throw new Error(`Opinions bulk file not found: ${OPINIONS_BULK_FILE}. Run ./download-opinions.sh`)
+	}
+
+	return new Promise((resolve, reject) => {
+		const rga = spawn('rga', ['--max-count', '1', `^${opinionId},`, OPINIONS_BULK_FILE], {
+			signal: signal as any,
+		})
+
+		let output = ''
+
+		rga.stdout.on('data', (data) => {
+			output += data.toString()
+		})
+
+		rga.on('close', (code) => {
+			if (signal?.aborted) {
+				reject(new Error('Aborted'))
+				return
+			}
+
+			if (!output.trim()) {
+				resolve(null)
+				return
+			}
+
+			try {
+				const csvLine = output.split('\n')[0]
+				const opinion = parseOpinionCSV(csvLine)
+				resolve(opinion)
+			} catch (err) {
+				reject(err)
+			}
+		})
+
+		rga.on('error', (err) => {
+			reject(err)
+		})
+	})
+}
+
+function parseOpinionCSV(csvLine: string): Opinion {
+	const columns = csvLine.split(',')
+	
+	return {
+		id: parseInt(columns[0], 10),
+		cluster_id: parseInt(columns[20] || '0', 10),
+		case_name: '',
+		case_name_full: '',
+		type: columns[5] || 'unknown',
+		author_str: columns[3],
+		per_curiam: columns[4] === 't',
+		html_with_citations: columns[17],
+		html: columns[12],
+		plain_text: columns[11],
+		xml_harvard: columns[16],
+		court: '',
+		court_id: '',
+		date_filed: '',
+		sha1: columns[7],
+		page_count: parseInt(columns[8] || '0', 10),
+		download_url: columns[9],
+		extracted_by_ocr: columns[18] === 't',
+	}
 }
 
 async function addToRipgrepCache(opinionId: number, opinion: Opinion): Promise<void> {
