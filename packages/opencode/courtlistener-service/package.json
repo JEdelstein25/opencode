@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun run server.ts",
     "start": "bun run server.ts",
+    "build-index": "bun run build-index.ts",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
