@@ -60,17 +60,15 @@ async function handleRequest(req: any, res: any): Promise<void> {
 		if (req.url === '/search/cases' && req.method === 'POST') {
 			const body = await readBody<SearchCasesRequest>(req)
 
-			const caseIds = await searchCaseIndex({
+			const result = await searchCaseIndex({
 				pattern: body.pattern,
 				court: body.court,
 				dateRange: body.dateRange,
 				limit: body.limit,
 			})
 
-			const cases = await getCaseMetadata(caseIds)
-
 			res.writeHead(200, { 'Content-Type': 'application/json' })
-			res.end(JSON.stringify({ caseIds, cases }))
+			res.end(JSON.stringify({ caseIds: result.ids, cases: result.entries }))
 			return
 		}
 

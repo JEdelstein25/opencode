@@ -1,88 +1,121 @@
 /**
  * Case name index search (Tier 1 cache).
- * Searches the compressed case index using in-memory glob matching.
+ * Uses ripgrep for fast searching of NDJSON file.
  */
 
-import { createReadStream } from 'node:fs'
-import { createInterface } from 'node:readline'
-import picomatch from 'picomatch'
+import { spawn } from 'node:child_process'
 import type { CaseIndexEntry, SearchCaseIndexOptions } from './types'
 
 const CASE_INDEX_PATH = process.env.COURTLISTENER_INDEX_PATH || '/tmp/cache/tier1/case_index.ndjson'
 
-let cachedIndex: CaseIndexEntry[] | null = null
-
-async function loadCaseIndex(signal?: AbortSignal): Promise<CaseIndexEntry[]> {
-	if (cachedIndex) {
-		return cachedIndex
-	}
-
-	const entries: CaseIndexEntry[] = []
-	const fileStream = createReadStream(CASE_INDEX_PATH, { signal: signal as any })
-	const rl = createInterface({
-		input: fileStream,
-		crlfDelay: Infinity,
-	})
-
-	for await (const line of rl) {
-		if (signal?.aborted) {
-			throw new Error('Aborted')
-		}
-		try {
-			const entry: CaseIndexEntry = JSON.parse(line)
-			entries.push(entry)
-		} catch (err) {
-			continue
-		}
-	}
-
-	cachedIndex = entries
-	return entries
+function globToRegex(pattern: string): string {
+	return pattern
+		.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+		.replace(/\*/g, '.*')
+		.replace(/\?/g, '.')
 }
 
-export async function searchCaseIndex(options: SearchCaseIndexOptions): Promise<number[]> {
+export async function searchCaseIndex(options: SearchCaseIndexOptions): Promise<{ ids: number[]; entries: CaseIndexEntry[] }> {
 	const { pattern, court, dateRange, limit = 100, signal } = options
 
-	const entries = await loadCaseIndex(signal)
+	const regex = globToRegex(pattern)
 
-	const isMatch = picomatch(pattern, {
-		contains: true,
-		nocase: true,
-	})
+	return new Promise((resolve, reject) => {
+		const rg = spawn('rg', ['-i', '--json', '-m', (limit * 2).toString(), regex, CASE_INDEX_PATH], {
+			signal: signal as any,
+		})
 
-	const matched: number[] = []
-	for (const entry of entries) {
-		if (matched.length >= limit) break
-		if (signal?.aborted) break
+		const matched: number[] = []
+		const entries: CaseIndexEntry[] = []
+		let buffer = ''
+		let killed = false
 
-		if (!isMatch(entry.name) && !isMatch(entry.full_name)) {
-			continue
-		}
+		rg.stdout.on('data', (data) => {
+			if (killed) return
 
-		if (court && !court.includes(entry.court_id)) {
-			continue
-		}
+			buffer += data.toString()
+			const lines = buffer.split('\n')
+			buffer = lines.pop() || ''
 
-		if (dateRange) {
-			const [start, end] = dateRange
-			if (entry.date < start || entry.date > end) {
-				continue
+			for (const line of lines) {
+				if (!line.trim() || killed) continue
+
+				try {
+					const match = JSON.parse(line)
+					if (match.type !== 'match') continue
+
+					const entry: CaseIndexEntry = JSON.parse(match.data.lines.text)
+
+					if (court && !court.includes(entry.court_id)) continue
+
+					if (dateRange) {
+						const [start, end] = dateRange
+						if (entry.date < start || entry.date > end) continue
+					}
+
+					matched.push(entry.id)
+					entries.push(entry)
+
+					if (matched.length >= limit) {
+						killed = true
+						rg.kill('SIGTERM')
+						resolve({ ids: matched, entries })
+						break
+					}
+				} catch (err) {
+					continue
+				}
 			}
-		}
+		})
 
-		matched.push(entry.id)
-	}
+		rg.on('close', () => {
+			if (!killed) resolve({ ids: matched, entries })
+		})
 
-	return matched
+		rg.on('error', (err) => {
+			if (!killed) reject(err)
+		})
+	})
 }
 
 export async function getCaseMetadata(caseIds: number[], signal?: AbortSignal): Promise<CaseIndexEntry[]> {
-	const entries = await loadCaseIndex(signal)
-	const idSet = new Set(caseIds)
+	const idPattern = caseIds.map((id) => `^{"id":${id},`).join('|')
 
-	return entries.filter((entry) => idSet.has(entry.id))
-}
+	return new Promise((resolve, reject) => {
+		const rg = spawn('rg', ['--json', idPattern, CASE_INDEX_PATH], {
+			signal: signal as any,
+		})
 
-export function clearCaseIndexCache(): void {
-	cachedIndex = null
+		const entries: CaseIndexEntry[] = []
+		let output = ''
+
+		rg.stdout.on('data', (data) => {
+			output += data.toString()
+		})
+
+		rg.on('close', () => {
+			if (signal?.aborted) {
+				reject(new Error('Aborted'))
+				return
+			}
+
+			const lines = output.split('\n').filter((line) => line.trim())
+			for (const line of lines) {
+				try {
+					const match = JSON.parse(line)
+					if (match.type !== 'match') continue
+					const entry: CaseIndexEntry = JSON.parse(match.data.lines.text)
+					entries.push(entry)
+				} catch (err) {
+					continue
+				}
+			}
+
+			resolve(entries)
+		})
+
+		rg.on('error', (err) => {
+			reject(err)
+		})
+	})
 }
