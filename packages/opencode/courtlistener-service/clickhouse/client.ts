@@ -12,7 +12,7 @@ export function getClickHouseClient(config?: ClickHouseConfig): ClickHouseClient
 		clientInstance = createClient({
 			url: `http://${config?.host || 'localhost'}:${config?.port || 8123}`,
 			username: config?.username || 'default',
-			password: config?.password || '',
+			password: config?.password ?? process.env.CLICKHOUSE_PASSWORD ?? 'clickhouse',
 			database: config?.database || 'default',
 
 			// Connection pooling

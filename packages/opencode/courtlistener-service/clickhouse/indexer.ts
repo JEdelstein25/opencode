@@ -53,14 +53,31 @@ export async function importToClickHouse(options: ImportOptions): Promise<Import
 }
 
 function buildInsertQuery(table: string, source: { type: 'local' | 's3'; path: string; compression: string }): string {
-	const compressionSuffix = source.compression !== 'none' ? ` COMPRESSION '${source.compression}'` : ''
-
+	// Detect format from file extension
+	const isNDJSON = source.path.endsWith('.ndjson') || source.path.endsWith('.jsonl')
+	const format = isNDJSON ? 'JSONEachRow' : 'CSV'
+	
+	const settings = isNDJSON
+		? `
+	SETTINGS 
+		input_format_allow_errors_num=50000,
+		input_format_allow_errors_ratio=0.01`
+		: `
+	SETTINGS 
+		input_format_csv_use_best_effort_in_schema_inference=1,
+		input_format_csv_detect_header=1,
+		format_csv_allow_double_quotes=1,
+		input_format_allow_errors_num=100000,
+		input_format_allow_errors_ratio=0.1,
+		input_format_csv_empty_as_default=1,
+		input_format_null_as_default=1`
+	
 	if (source.type === 'local') {
-		return `INSERT INTO ${table} SELECT * FROM file('${source.path}', CSVWithNames)${compressionSuffix}`
+		return `INSERT INTO ${table} SELECT * FROM file('${source.path}', ${format})${settings}`
 	}
 
 	// S3 source
-	return `INSERT INTO ${table} SELECT * FROM s3('${source.path}', CSVWithNames)${compressionSuffix}`
+	return `INSERT INTO ${table} SELECT * FROM s3('${source.path}', ${format})${settings}`
 }
 
 async function executeInsertWithProgress(
