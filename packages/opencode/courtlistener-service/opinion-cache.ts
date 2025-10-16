@@ -168,6 +168,65 @@ ${opinionText}
 	await writeFile(textPath, searchableText)
 }
 
+/**
+ * Proactively cache opinion text from ClickHouse data.
+ * Used by keyword search to pre-populate cache before regex search.
+ */
+export async function cacheOpinionFromClickHouse(
+	opinionId: number,
+	opinionData: {
+		id: number
+		cluster_id: number
+		type: string
+		plain_text: string
+		author_str?: string
+		case_name?: string
+		case_name_full?: string
+		court?: string
+		date_filed?: string
+	},
+): Promise<void> {
+	await ensureCacheDir()
+
+	const jsonPath = join(TIER2_CACHE_DIR, `${opinionId}.json`)
+	const txtPath = join(TIER2_CACHE_DIR, `${opinionId}.txt`)
+
+	// Create minimal Opinion object for cache
+	const opinion: Opinion = {
+		id: opinionData.id,
+		cluster_id: opinionData.cluster_id,
+		type: opinionData.type,
+		plain_text: opinionData.plain_text,
+		author_str: opinionData.author_str,
+		case_name: opinionData.case_name || '',
+		case_name_full: opinionData.case_name_full || '',
+		court: opinionData.court || '',
+		court_id: opinionData.court || '',
+		date_filed: opinionData.date_filed || '',
+		per_curiam: false,
+	}
+
+	// Write JSON cache
+	await writeFile(jsonPath, JSON.stringify(opinion, null, 2))
+
+	// Write text cache for ripgrep
+	const searchableText = `
+Case: ${opinion.case_name}
+Full Name: ${opinion.case_name_full}
+Type: ${opinion.type}
+Court: ${opinion.court}
+Date: ${opinion.date_filed}
+Author: ${opinion.author_str || 'N/A'}
+
+${opinionData.plain_text}
+	`.trim()
+
+	await writeFile(txtPath, searchableText)
+
+	// Update metadata
+	await updateCacheMetadata(opinionId, opinion)
+}
+
 export async function searchOpinionContent(
 	opinionIds: number[],
 	pattern: string,

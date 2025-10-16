@@ -13,6 +13,12 @@ import { InvalidTool } from "./invalid"
 import { CourtListenerSearchTool } from "./courtlistener-search"
 import { CourtListenerReadTool } from "./courtlistener-read"
 import { CourtListenerContentSearchTool } from "./courtlistener-content"
+import {
+	courtlistenerConfigureFilters,
+	courtlistenerSearchMetadata,
+	courtlistenerSearchKeywords,
+	courtlistenerRegexSearch,
+} from "../../courtlistener-service/clickhouse/search-tools"
 import type { Agent } from "../agent/agent"
 import { Tool } from "./tool"
 import { Instance } from "../project/instance"
@@ -94,6 +100,10 @@ export namespace ToolRegistry {
       CourtListenerSearchTool,
       CourtListenerReadTool,
       CourtListenerContentSearchTool,
+      courtlistenerConfigureFilters,
+      courtlistenerSearchMetadata,
+      courtlistenerSearchKeywords,
+      courtlistenerRegexSearch,
       ...custom,
     ]
   }
